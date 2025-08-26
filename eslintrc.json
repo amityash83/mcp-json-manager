@@ -1,0 +1,108 @@
+{
+  "name": "mcp-json-manager",
+  "displayName": "MCP JSON Manager",
+  "description": "Visual form-based manager for MCP (Model Context Protocol) JSON configurations",
+  "version": "0.0.1",
+  "publisher": "YOUR_PUBLISHER_NAME",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "json",
+    "configuration",
+    "manager",
+    "gui",
+    "form",
+    "ai",
+    "copilot"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/mcp-json-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/mcp-json-manager/issues"
+  },
+  "homepage": "https://github.com/YOUR_USERNAME/mcp-json-manager#readme",
+  "license": "MIT",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#0078d4",
+    "theme": "dark"
+  },
+  "activationEvents": [
+    "onCommand:mcpManager.openManager"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mcpManager.openManager",
+        "title": "Open MCP Manager",
+        "category": "MCP"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "mcpManager.openManager",
+          "when": "resourceFilename =~ /.*\\.mcp\\.json$/",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "mcpManager.openManager",
+          "when": "resourceFilename =~ /.*\\.mcp\\.json$/",
+          "group": "navigation"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "mcpManager",
+          "name": "MCP Configurations",
+          "when": "workspaceHasFiles"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mcp-manager",
+          "title": "MCP Manager",
+          "icon": "$(json)"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "publish:ovsx": "ovsx publish"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^6.4.0",
+    "@typescript-eslint/parser": "^6.4.0",
+    "@vscode/test-electron": "^2.3.4",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.47.0",
+    "ovsx": "^0.8.3",
+    "typescript": "^5.1.6"
+  }
+}

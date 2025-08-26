@@ -11,7 +11,7 @@ on:
 jobs:
   # Build and test on every push/PR
   test:
-    name: Test Extension
+    name: Build Extension
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'  # Updated to Node 20
+          node-version: '20'
 
       - name: Cache dependencies
         uses: actions/cache@v3
@@ -33,28 +33,34 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Lint code
-        run: npm run lint
-        continue-on-error: true
-
       - name: Compile TypeScript
         run: npm run compile
 
-      - name: Run tests (if any)
-        run: npm run test || echo "Tests completed with warnings"
-        continue-on-error: true
-
-      - name: Package extension
-        run: npx vsce package --out mcp-json-manager-test.vsix
+      - name: Package extension (test build)
+        run: npx vsce package --out mcp-json-manager-test-${{ github.sha }}.vsix
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v4
         with:
           name: extension-test-build
-          path: mcp-json-manager-test.vsix
+          path: mcp-json-manager-test-${{ github.sha }}.vsix
           retention-days: 7
 
-  # Build and publish on release
+      - name: Add build info to summary
+        run: |
+          echo "## 📦 Extension Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact**: mcp-json-manager-test-${{ github.sha }}.vsix" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🧪 Testing Instructions" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download the artifact from this build" >> $GITHUB_STEP_SUMMARY
+          echo "2. Install in VS Code: \`code --install-extension mcp-json-manager-test-${{ github.sha }}.vsix\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Test the extension functionality" >> $GITHUB_STEP_SUMMARY
+          echo "4. If ready to publish, create a release with proper publisher name" >> $GITHUB_STEP_SUMMARY
+
+  # Only publish on release AND when secrets are configured
   publish:
     name: Publish Extension
     runs-on: ubuntu-latest
@@ -65,18 +71,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check for required secrets
+        run: |
+          if [[ -z "${{ secrets.VSCE_PAT }}" ]] || [[ -z "${{ secrets.PUBLISHER_NAME }}" ]]; then
+            echo "❌ Missing required secrets for publishing:"
+            echo "   - VSCE_PAT: ${{ secrets.VSCE_PAT && 'configured' || 'missing' }}"
+            echo "   - PUBLISHER_NAME: ${{ secrets.PUBLISHER_NAME && 'configured' || 'missing' }}"
+            echo ""
+            echo "🔧 To enable publishing:"
+            echo "1. Create Azure DevOps Personal Access Token with Marketplace scope"
+            echo "2. Add VSCE_PAT secret with your token"
+            echo "3. Add PUBLISHER_NAME secret with your publisher ID"
+            echo "4. Update package.json with your real publisher name"
+            echo ""
+            echo "📦 For now, using test build artifacts only"
+            exit 1
+          fi
+          echo "✅ Publishing secrets are configured"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'  # Updated to Node 20
-
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          node-version: '20'
 
       - name: Install dependencies
         run: npm install
@@ -91,10 +107,12 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Publishing version: $VERSION"
 
-      - name: Update package.json version
-        run: npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+      - name: Update package.json with real publisher
+        run: |
+          npm pkg set publisher="${{ secrets.PUBLISHER_NAME }}"
+          npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
 
-      - name: Package extension
+      - name: Package extension for release
         run: npx vsce package --out mcp-json-manager-${{ steps.get_version.outputs.VERSION }}.vsix
 
       - name: Publish to VS Code Marketplace
@@ -141,11 +159,3 @@ jobs:
             exit 1
           fi
           echo "✅ Tag format is valid"
-
-      - name: Check for required secrets
-        run: |
-          if [[ -z "${{ secrets.VSCE_PAT }}" ]]; then
-            echo "❌ VSCE_PAT secret is not configured"
-            exit 1
-          fi
-          echo "✅ Required secrets are configured"

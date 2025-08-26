@@ -138,8 +138,17 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Publish to marketplace (if configured)
-        if: ${{ secrets.VSCE_PAT != '' && secrets.PUBLISHER_NAME != '' }}
+      - name: Check marketplace configuration
+        id: check_marketplace
+        run: |
+          if [[ -n "${{ secrets.VSCE_PAT }}" ]] && [[ -n "${{ secrets.PUBLISHER_NAME }}" ]]; then
+            echo "marketplace_configured=true" >> $GITHUB_OUTPUT
+          else
+            echo "marketplace_configured=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to marketplace
+        if: steps.check_marketplace.outputs.marketplace_configured == 'true'
         run: |
           # Update publisher name for marketplace
           npm pkg set publisher="${{ secrets.PUBLISHER_NAME }}"
@@ -150,15 +159,24 @@ jobs:
           echo "✅ Published to VS Code Marketplace!"
         continue-on-error: true
 
-      - name: Publish to Open VSX (if configured)
-        if: ${{ secrets.OVSX_PAT != '' }}
+      - name: Check Open VSX configuration  
+        id: check_ovsx
+        run: |
+          if [[ -n "${{ secrets.OVSX_PAT }}" ]]; then
+            echo "ovsx_configured=true" >> $GITHUB_OUTPUT
+          else
+            echo "ovsx_configured=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to Open VSX
+        if: steps.check_ovsx.outputs.ovsx_configured == 'true'
         run: |
           npx ovsx publish mcp-json-manager-${{ steps.version.outputs.version }}.vsix -p ${{ secrets.OVSX_PAT }}
           echo "✅ Published to Open VSX Registry!"
         continue-on-error: true
 
       - name: Update release with marketplace links
-        if: ${{ secrets.VSCE_PAT != '' && secrets.PUBLISHER_NAME != '' }}
+        if: steps.check_marketplace.outputs.marketplace_configured == 'true'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.tag_name }}
@@ -195,3 +213,22 @@ jobs:
             
             **🎉 Now available on VS Code Marketplace!**
           append_body: false
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: mcp-json-manager-${{ steps.version.outputs.version }}.vsix" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub Release**: ✅ Created" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ steps.check_marketplace.outputs.marketplace_configured }}" == "true" ]]; then
+            echo "- **VS Code Marketplace**: ✅ Published" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **VS Code Marketplace**: ⏳ Not configured (add VSCE_PAT and PUBLISHER_NAME secrets)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ steps.check_ovsx.outputs.ovsx_configured }}" == "true" ]]; then
+            echo "- **Open VSX**: ✅ Published" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Open VSX**: ⏳ Not configured (add OVSX_PAT secret)" >> $GITHUB_STEP_SUMMARY
+          fi

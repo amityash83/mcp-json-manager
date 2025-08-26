@@ -8,9 +8,7 @@
     "vscode": "^1.74.0",
     "node": ">=18.0.0"
   },
-  "categories": [
-    "Other"
-  ],
+  "categories": ["Other"],
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -18,22 +16,10 @@
     "configuration",
     "manager",
     "gui",
-    "form",
-    "ai",
-    "copilot"
+    "form"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/mcp-json-manager.git"
-  },
-  "bugs": {
-    "url": "https://github.com/YOUR_USERNAME/mcp-json-manager/issues"
-  },
-  "homepage": "https://github.com/YOUR_USERNAME/mcp-json-manager#readme",
   "license": "MIT",
-  "activationEvents": [
-    "onCommand:mcpManager.openManager"
-  ],
+  "activationEvents": ["onCommand:mcpManager.openManager"],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -50,22 +36,6 @@
           "when": "resourceFilename =~ /.*\\.mcp\\.json$/",
           "group": "navigation"
         }
-      ],
-      "editor/title": [
-        {
-          "command": "mcpManager.openManager",
-          "when": "resourceFilename =~ /.*\\.mcp\\.json$/",
-          "group": "navigation"
-        }
-      ]
-    ],
-    "views": {
-      "explorer": [
-        {
-          "id": "mcpManager",
-          "name": "MCP Configurations",
-          "when": "workspaceHasFiles"
-        }
       ]
     }
   },
@@ -73,11 +43,8 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "echo 'Linting skipped for now'",
-    "test": "echo 'Tests skipped for now'",
     "package": "vsce package",
-    "package:local": "vsce package --no-yarn",
-    "install:local": "code --install-extension *.vsix"
+    "test": "echo 'Tests skipped'"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",

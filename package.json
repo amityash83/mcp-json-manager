@@ -2,13 +2,15 @@
   "name": "mcp-json-manager",
   "displayName": "MCP JSON Manager",
   "description": "Visual form-based manager for MCP (Model Context Protocol) JSON configurations",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "test-publisher",
   "engines": {
     "vscode": "^1.74.0",
     "node": ">=18.0.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -19,7 +21,9 @@
     "form"
   ],
   "license": "MIT",
-  "activationEvents": ["onCommand:mcpManager.openManager"],
+  "activationEvents": [
+    "onCommand:mcpManager.openManager"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [

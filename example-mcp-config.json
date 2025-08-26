@@ -1,0 +1,46 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": ["python", "-m", "mcp_filesystem"],
+      "args": ["--path", "/home/user/documents"],
+      "cwd": "/home/user/mcp-servers",
+      "env": {
+        "DEBUG": "1",
+        "LOG_LEVEL": "info"
+      }
+    },
+    "web-search": {
+      "command": ["node", "web-search-server.js"],
+      "env": {
+        "API_KEY": "your-api-key",
+        "SEARCH_ENGINE": "google"
+      }
+    },
+    "database": {
+      "command": ["python", "-m", "database_mcp"],
+      "args": ["--host", "localhost", "--port", "5432"],
+      "env": {
+        "DB_USER": "mcpuser",
+        "DB_PASSWORD": "password123",
+        "DB_NAME": "mcpdb"
+      }
+    },
+    "git-tools": {
+      "command": ["node", "git-mcp-server.js"],
+      "cwd": "/workspace/projects",
+      "env": {
+        "GIT_USER_NAME": "MCP User",
+        "GIT_USER_EMAIL": "mcp@example.com"
+      }
+    },
+    "code-analysis": {
+      "command": ["python", "-m", "code_analyzer"],
+      "args": ["--language", "typescript", "--framework", "react"],
+      "cwd": "/tools/analyzers",
+      "env": {
+        "ANALYSIS_DEPTH": "full",
+        "OUTPUT_FORMAT": "json"
+      }
+    }
+  }
+}

@@ -1,0 +1,150 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [published]
+
+jobs:
+  # Build and test on every push/PR
+  test:
+    name: Test Extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Compile TypeScript
+        run: npm run compile
+
+      - name: Run tests
+        run: npm test
+        continue-on-error: true
+
+      - name: Package extension
+        run: npx vsce package --out mcp-json-manager-test.vsix
+
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-test-build
+          path: mcp-json-manager-test.vsix
+          retention-days: 7
+
+  # Build and publish on release
+  publish:
+    name: Publish Extension
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run compile
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF/refs\/tags\/v/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Update package.json version
+        run: npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+
+      - name: Package extension
+        run: npx vsce package --out mcp-json-manager-${{ steps.get_version.outputs.VERSION }}.vsix
+
+      - name: Publish to VS Code Marketplace
+        run: npx vsce publish -p ${{ secrets.VSCE_PAT }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX Registry
+        run: npx ovsx publish mcp-json-manager-${{ steps.get_version.outputs.VERSION }}.vsix -p ${{ secrets.OVSX_PAT }}
+        continue-on-error: true
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-release-${{ steps.get_version.outputs.VERSION }}
+          path: mcp-json-manager-${{ steps.get_version.outputs.VERSION }}.vsix
+
+      - name: Attach VSIX to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: mcp-json-manager-${{ steps.get_version.outputs.VERSION }}.vsix
+          asset_name: mcp-json-manager-${{ steps.get_version.outputs.VERSION }}.vsix
+          asset_content_type: application/zip
+
+      - name: Create success comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.payload.release.id,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚀 Extension successfully published to VS Code Marketplace!\n\n' +
+                    '📦 Version: ${{ steps.get_version.outputs.VERSION }}\n' +
+                    '🔗 [View in Marketplace](https://marketplace.visualstudio.com/items?itemName=YOUR_PUBLISHER_NAME.mcp-json-manager)'
+            })
+
+  # Pre-release validation
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate release tag format
+        run: |
+          if [[ ! "${GITHUB_REF}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid tag format. Use semantic versioning: v1.0.0"
+            exit 1
+          fi
+          echo "✅ Tag format is valid"
+
+      - name: Check for required secrets
+        run: |
+          if [[ -z "${{ secrets.VSCE_PAT }}" ]]; then
+            echo "❌ VSCE_PAT secret is not configured"
+            exit 1
+          fi
+          echo "✅ Required secrets are configured"

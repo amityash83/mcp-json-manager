@@ -3,7 +3,7 @@
   "displayName": "MCP JSON Manager",
   "description": "Visual form-based manager for MCP (Model Context Protocol) JSON configurations",
   "version": "0.0.1",
-  "publisher": "YOUR_PUBLISHER_NAME",
+  "publisher": "test-publisher",
   "engines": {
     "vscode": "^1.74.0",
     "node": ">=18.0.0"
@@ -31,11 +31,6 @@
   },
   "homepage": "https://github.com/YOUR_USERNAME/mcp-json-manager#readme",
   "license": "MIT",
-  "icon": "icon.png",
-  "galleryBanner": {
-    "color": "#0078d4",
-    "theme": "dark"
-  },
   "activationEvents": [
     "onCommand:mcpManager.openManager"
   ],
@@ -63,7 +58,7 @@
           "group": "navigation"
         }
       ]
-    },
+    ],
     "views": {
       "explorer": [
         {
@@ -80,7 +75,9 @@
     "watch": "tsc -watch -p ./",
     "lint": "echo 'Linting skipped for now'",
     "test": "echo 'Tests skipped for now'",
-    "package": "vsce package"
+    "package": "vsce package",
+    "package:local": "vsce package --no-yarn",
+    "install:local": "code --install-extension *.vsix"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",

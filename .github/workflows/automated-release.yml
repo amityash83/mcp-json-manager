@@ -1,0 +1,197 @@
+name: Automated Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      release_notes:
+        description: 'Release notes (optional)'
+        required: false
+        type: string
+
+  # Also trigger on manual tag push
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  automated-release:
+    name: Create Automated Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating releases
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for changelog
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Compile extension
+        run: npm run compile
+
+      # Only bump version if triggered by workflow_dispatch
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Bump version based on input
+            NEW_VERSION=$(npm version ${{ github.event.inputs.version_type }} --no-git-tag-version)
+            echo "version=${NEW_VERSION#v}" >> $GITHUB_OUTPUT
+            echo "tag_name=v${NEW_VERSION#v}" >> $GITHUB_OUTPUT
+            echo "is_new_version=true" >> $GITHUB_OUTPUT
+          else
+            # Extract from existing tag
+            VERSION=${GITHUB_REF/refs\/tags\/v/}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag_name=v$VERSION" >> $GITHUB_OUTPUT
+            echo "is_new_version=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Simple changelog generation
+          if [[ -f CHANGELOG.md ]]; then
+            CHANGELOG=$(sed -n "/## \[${{ steps.version.outputs.version }}\]/,/## \[/p" CHANGELOG.md | sed '$d')
+          else
+            CHANGELOG="## Changes in ${{ steps.version.outputs.tag_name }}
+          
+          $(git log --oneline --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")..HEAD)"
+          fi
+          
+          # Use input release notes if provided
+          if [[ -n "${{ github.event.inputs.release_notes }}" ]]; then
+            CHANGELOG="${{ github.event.inputs.release_notes }}"
+          fi
+          
+          # Save changelog to output
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Package extension
+        run: |
+          npx vsce package --out mcp-json-manager-${{ steps.version.outputs.version }}.vsix
+
+      - name: Create/update tag (if new version)
+        if: steps.version.outputs.is_new_version == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: bump version to ${{ steps.version.outputs.tag_name }}"
+          git tag ${{ steps.version.outputs.tag_name }}
+          git push origin main
+          git push origin ${{ steps.version.outputs.tag_name }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          name: "Release ${{ steps.version.outputs.tag_name }}"
+          body: |
+            # MCP JSON Manager ${{ steps.version.outputs.tag_name }}
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ## 📦 Installation
+            
+            Download the `mcp-json-manager-${{ steps.version.outputs.version }}.vsix` file and install:
+            
+            ```bash
+            code --install-extension mcp-json-manager-${{ steps.version.outputs.version }}.vsix
+            ```
+            
+            ## 🧪 Testing
+            
+            This extension provides a visual interface for managing MCP configurations:
+            1. Open Command Palette (`Ctrl+Shift+P`)
+            2. Search for "MCP: Open MCP Manager"
+            3. Create or edit MCP server configurations
+            
+            ## 📝 Feedback
+            
+            Please report issues or suggest features in the [GitHub Issues](https://github.com/${{ github.repository }}/issues).
+            
+            ---
+            
+            **Note**: This is currently a test release. Marketplace publishing requires publisher configuration.
+          files: |
+            mcp-json-manager-${{ steps.version.outputs.version }}.vsix
+          draft: false
+          prerelease: false
+
+      - name: Publish to marketplace (if configured)
+        if: ${{ secrets.VSCE_PAT != '' && secrets.PUBLISHER_NAME != '' }}
+        run: |
+          # Update publisher name for marketplace
+          npm pkg set publisher="${{ secrets.PUBLISHER_NAME }}"
+          
+          # Publish to VS Code Marketplace
+          npx vsce publish -p ${{ secrets.VSCE_PAT }}
+          
+          echo "✅ Published to VS Code Marketplace!"
+        continue-on-error: true
+
+      - name: Publish to Open VSX (if configured)
+        if: ${{ secrets.OVSX_PAT != '' }}
+        run: |
+          npx ovsx publish mcp-json-manager-${{ steps.version.outputs.version }}.vsix -p ${{ secrets.OVSX_PAT }}
+          echo "✅ Published to Open VSX Registry!"
+        continue-on-error: true
+
+      - name: Update release with marketplace links
+        if: ${{ secrets.VSCE_PAT != '' && secrets.PUBLISHER_NAME != '' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          body: |
+            # MCP JSON Manager ${{ steps.version.outputs.tag_name }}
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ## 📦 Installation Options
+            
+            ### Option 1: VS Code Marketplace (Recommended)
+            ```bash
+            code --install-extension ${{ secrets.PUBLISHER_NAME }}.mcp-json-manager
+            ```
+            
+            ### Option 2: Manual Installation
+            Download the `mcp-json-manager-${{ steps.version.outputs.version }}.vsix` file and install:
+            ```bash
+            code --install-extension mcp-json-manager-${{ steps.version.outputs.version }}.vsix
+            ```
+            
+            ## 🔗 Links
+            - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=${{ secrets.PUBLISHER_NAME }}.mcp-json-manager)
+            - [Repository](https://github.com/${{ github.repository }})
+            - [Issues](https://github.com/${{ github.repository }}/issues)
+            
+            ## 🧪 Usage
+            
+            1. Open Command Palette (`Ctrl+Shift+P`)
+            2. Search for "MCP: Open MCP Manager"
+            3. Create or edit MCP server configurations visually
+            
+            ---
+            
+            **🎉 Now available on VS Code Marketplace!**
+          append_body: false

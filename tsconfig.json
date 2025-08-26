@@ -10,14 +10,13 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "src/**/*.ts",
-    "*.ts"
+  "files": [
+    "src/extension.ts"
   ],
   "exclude": [
     "node_modules", 
     ".vscode-test",
     "out",
-    "**/*.test.ts"
+    "src/test"
   ]
 }

@@ -41,6 +41,7 @@ build/Release
 node_modules/
 jspm_packages/
 
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
@@ -77,6 +78,8 @@ web_modules/
 # Next.js build output
 .next
 out
+out/
+.vsix
 
 # Nuxt.js build / generate output
 .nuxt
@@ -137,3 +140,50 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+# Compiled output
+out/
+*.vsix
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# VS Code
+.vscode-test/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Temporary folders
+tmp/
+temp/

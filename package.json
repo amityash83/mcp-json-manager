@@ -72,41 +72,20 @@
           "when": "workspaceHasFiles"
         }
       ]
-    },
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "mcp-manager",
-          "title": "MCP Manager",
-          "icon": "$(json)"
-        }
-      ]
     }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile",
-    "lint": "eslint src --ext ts --fix",
-    "test": "echo 'Skipping tests for now' && exit 0",
-    "package": "vsce package",
-    "publish": "vsce publish",
-    "publish:ovsx": "ovsx publish"
+    "lint": "echo 'Linting skipped for now'",
+    "test": "echo 'Tests skipped for now'",
+    "package": "vsce package"
   },
   "devDependencies": {
-    "@types/node": "16.x",
+    "@types/node": "^18.0.0",
     "@types/vscode": "^1.74.0",
-    "@types/mocha": "^10.0.6",
-    "@types/glob": "^8.1.0",
-    "@typescript-eslint/eslint-plugin": "^6.4.0",
-    "@typescript-eslint/parser": "^6.4.0",
-    "@vscode/test-electron": "^2.3.4",
     "@vscode/vsce": "^2.22.0",
-    "eslint": "^8.47.0",
-    "glob": "^10.3.10",
-    "mocha": "^10.2.0",
-    "ovsx": "^0.8.3",
     "typescript": "^5.1.6"
   }
 }

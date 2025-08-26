@@ -2,15 +2,13 @@
   "name": "mcp-json-manager",
   "displayName": "MCP JSON Manager",
   "description": "Visual form-based manager for MCP (Model Context Protocol) JSON configurations",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "publisher": "test-publisher",
   "engines": {
     "vscode": "^1.74.0",
     "node": ">=18.0.0"
   },
-  "categories": [
-    "Other"
-  ],
+  "categories": ["Other"],
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -22,7 +20,8 @@
   ],
   "license": "MIT",
   "activationEvents": [
-    "onCommand:mcpManager.openManager"
+    "onCommand:mcpManager.openManager",
+    "onView:mcpConfigPanel"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -30,10 +29,71 @@
       {
         "command": "mcpManager.openManager",
         "title": "Open MCP Manager",
-        "category": "MCP"
+        "category": "MCP",
+        "icon": "$(json)"
+      },
+      {
+        "command": "mcpManager.refreshConfigs",
+        "title": "Refresh MCP Configurations",
+        "category": "MCP",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "mcpManager.addServer",
+        "title": "Add MCP Server",
+        "category": "MCP",
+        "icon": "$(add)"
+      },
+      {
+        "command": "mcpManager.editServer",
+        "title": "Edit Server",
+        "category": "MCP",
+        "icon": "$(edit)"
       }
     ],
+    "views": {
+      "mcpConfigPanel": [
+        {
+          "id": "mcpConfigurations",
+          "name": "MCP Servers",
+          "when": "true"
+        },
+        {
+          "id": "mcpWorkspaceConfigs", 
+          "name": "Workspace Configs",
+          "when": "workspaceHasFiles"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "mcpConfigPanel",
+          "title": "MCP Configuration",
+          "icon": "$(json)"
+        }
+      ]
+    },
     "menus": {
+      "view/title": [
+        {
+          "command": "mcpManager.refreshConfigs",
+          "when": "view == mcpConfigurations",
+          "group": "navigation"
+        },
+        {
+          "command": "mcpManager.addServer",
+          "when": "view == mcpConfigurations", 
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "mcpManager.editServer",
+          "when": "view == mcpConfigurations",
+          "group": "inline"
+        }
+      ],
       "explorer/context": [
         {
           "command": "mcpManager.openManager",

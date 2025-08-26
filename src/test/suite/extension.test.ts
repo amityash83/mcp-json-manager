@@ -48,6 +48,3 @@ export async function runExtensionTests(): Promise<void> {
 
     console.log('🎉 All tests passed!');
 }
-
-// Export for potential use
-export { runExtensionTests };

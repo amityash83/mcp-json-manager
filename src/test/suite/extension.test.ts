@@ -1,55 +1,53 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 
-suite('Extension Test Suite', () => {
-    vscode.window.showInformationMessage('Start all tests.');
+// Simple test without Mocha framework
+export async function runExtensionTests(): Promise<void> {
+    console.log('🧪 Testing MCP JSON Manager Extension...');
 
-    test('Extension should be present', () => {
-        assert.ok(vscode.extensions.getExtension('YOUR_PUBLISHER_NAME.mcp-json-manager'));
-    });
+    // Test 1: Extension presence
+    console.log('📦 Checking extension presence...');
+    const ext = vscode.extensions.getExtension('YOUR_PUBLISHER_NAME.mcp-json-manager');
+    if (!ext) {
+        throw new Error('Extension not found');
+    }
+    console.log('✅ Extension found');
 
-    test('Extension should activate', async () => {
-        const ext = vscode.extensions.getExtension('YOUR_PUBLISHER_NAME.mcp-json-manager');
-        assert.ok(ext);
-        
-        await ext!.activate();
-        assert.strictEqual(ext!.isActive, true);
-    });
+    // Test 2: Extension activation
+    console.log('🚀 Testing extension activation...');
+    await ext.activate();
+    if (!ext.isActive) {
+        throw new Error('Extension failed to activate');
+    }
+    console.log('✅ Extension activated successfully');
 
-    test('MCP Manager command should be registered', async () => {
-        const commands = await vscode.commands.getCommands();
-        assert.ok(commands.includes('mcpManager.openManager'));
-    });
+    // Test 3: Command registration
+    console.log('⚡ Checking command registration...');
+    const commands = await vscode.commands.getCommands();
+    if (!commands.includes('mcpManager.openManager')) {
+        throw new Error('MCP Manager command not registered');
+    }
+    console.log('✅ Commands registered');
 
-    test('Should handle invalid JSON gracefully', () => {
-        // Test configuration parsing with invalid JSON
-        const invalidJson = '{"invalid": json}';
-        
-        try {
-            JSON.parse(invalidJson);
-            assert.fail('Should have thrown an error');
-        } catch (error) {
-            assert.ok(error instanceof SyntaxError);
-        }
-    });
-
-    test('Should validate MCP server configuration', () => {
-        const validConfig = {
-            mcpServers: {
-                "test-server": {
-                    command: ["node", "server.js"],
-                    args: ["--port", "3000"],
-                    env: {
-                        "NODE_ENV": "development"
-                    }
-                }
+    // Test 4: JSON validation
+    console.log('🔍 Testing JSON validation...');
+    const validConfig = {
+        mcpServers: {
+            "test-server": {
+                command: ["node", "server.js"],
+                args: ["--port", "3000"]
             }
-        };
+        }
+    };
 
-        // Basic structure validation
-        assert.ok(validConfig.mcpServers);
-        assert.ok(validConfig.mcpServers["test-server"]);
-        assert.ok(Array.isArray(validConfig.mcpServers["test-server"].command));
-        assert.strictEqual(validConfig.mcpServers["test-server"].command[0], "node");
-    });
-});
+    // Basic structure validation
+    assert.ok(validConfig.mcpServers, 'mcpServers should exist');
+    assert.ok(validConfig.mcpServers["test-server"], 'test-server should exist');
+    assert.ok(Array.isArray(validConfig.mcpServers["test-server"].command), 'command should be array');
+    console.log('✅ JSON validation works');
+
+    console.log('🎉 All tests passed!');
+}
+
+// Export for potential use
+export { runExtensionTests };

@@ -54,16 +54,36 @@ npm install
 echo -e "${BLUE}🔨 Building extension...${NC}"
 npm run compile
 
-# Get current version
-CURRENT_VERSION=$(node -p "require('./package.json').version")
-echo -e "${BLUE}📋 Current version: ${CURRENT_VERSION}${NC}"
+# Get current version from Git tags (not package.json)
+CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+CURRENT_VERSION=${CURRENT_TAG#v}
+echo -e "${BLUE}📋 Current version (from Git): ${CURRENT_VERSION}${NC}"
 
-# Bump version
-echo -e "${BLUE}📈 Bumping ${VERSION_TYPE} version...${NC}"
-NEW_VERSION=$(npm version $VERSION_TYPE --no-git-tag-version)
-NEW_VERSION=${NEW_VERSION#v}  # Remove 'v' prefix
+# Parse current version
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
-echo -e "${GREEN}✅ New version: ${NEW_VERSION}${NC}"
+# Calculate new version based on type
+case "$VERSION_TYPE" in
+    "major")
+        MAJOR=$((MAJOR + 1))
+        MINOR=0
+        PATCH=0
+        ;;
+    "minor")
+        MINOR=$((MINOR + 1)) 
+        PATCH=0
+        ;;
+    "patch")
+        PATCH=$((PATCH + 1))
+        ;;
+esac
+
+NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+echo -e "${GREEN}✅ New version will be: ${NEW_VERSION}${NC}"
+
+# Update package.json with new version
+echo -e "${BLUE}📈 Updating package.json...${NC}"
+npm version $NEW_VERSION --no-git-tag-version
 
 # Package extension
 echo -e "${BLUE}📦 Packaging extension...${NC}"

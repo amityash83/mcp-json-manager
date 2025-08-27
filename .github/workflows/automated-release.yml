@@ -51,11 +51,45 @@ jobs:
         id: version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # Bump version based on input
-            NEW_VERSION=$(npm version ${{ github.event.inputs.version_type }} --no-git-tag-version)
-            echo "version=${NEW_VERSION#v}" >> $GITHUB_OUTPUT
-            echo "tag_name=v${NEW_VERSION#v}" >> $GITHUB_OUTPUT
+            # Get the latest Git tag to determine current version
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            CURRENT_VERSION=${LATEST_TAG#v}  # Remove 'v' prefix
+            
+            echo "Latest tag: $LATEST_TAG"
+            echo "Current version: $CURRENT_VERSION"
+            
+            # Parse version components
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+            
+            # Increment based on version type
+            case "${{ github.event.inputs.version_type }}" in
+              "major")
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              "minor") 
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              "patch")
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+            
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+            TAG_NAME="v$NEW_VERSION"
+            
+            echo "New version: $NEW_VERSION"
+            echo "New tag: $TAG_NAME"
+            
+            # Update package.json with new version
+            npm version $NEW_VERSION --no-git-tag-version
+            
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
             echo "is_new_version=true" >> $GITHUB_OUTPUT
+            echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           else
             # Extract from existing tag
             VERSION=${GITHUB_REF/refs\/tags\/v/}
@@ -95,19 +129,34 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json
-          git commit -m "chore: bump version to ${{ steps.version.outputs.tag_name }}"
           
-          # Check if tag already exists
+          # Check if tag already exists and handle it
           if git rev-parse ${{ steps.version.outputs.tag_name }} >/dev/null 2>&1; then
-            echo "Tag ${{ steps.version.outputs.tag_name }} already exists, deleting..."
+            echo "⚠️ Tag ${{ steps.version.outputs.tag_name }} already exists!"
+            echo "Current version: ${{ steps.version.outputs.current_version }}"
+            echo "Requested version: ${{ steps.version.outputs.version }}"
+            
+            # If it's the same version, this is likely a re-run or conflict
+            if [[ "${{ steps.version.outputs.current_version }}" == "${{ steps.version.outputs.version }}" ]]; then
+              echo "❌ Cannot create duplicate version. Current: ${{ steps.version.outputs.current_version }}, Requested: ${{ steps.version.outputs.version }}"
+              echo "This suggests the version calculation is incorrect or this is a duplicate release."
+              exit 1
+            fi
+            
+            echo "Deleting existing tag to recreate with new release..."
             git tag -d ${{ steps.version.outputs.tag_name }}
             git push origin :refs/tags/${{ steps.version.outputs.tag_name }} || true
           fi
           
+          # Commit version bump
+          git add package.json
+          git commit -m "chore: bump version to ${{ steps.version.outputs.tag_name }}" || echo "No changes to commit"
+          
           # Create new tag
           git tag ${{ steps.version.outputs.tag_name }}
-          git push origin main
+          
+          # Push changes
+          git push origin main || echo "Nothing to push to main"
           git push origin ${{ steps.version.outputs.tag_name }}
 
       - name: Create GitHub Release
@@ -117,6 +166,11 @@ jobs:
           name: "Release ${{ steps.version.outputs.tag_name }}"
           body: |
             # MCP JSON Manager ${{ steps.version.outputs.tag_name }}
+            
+            **Version History:**
+            - Previous: v${{ steps.version.outputs.current_version || '0.0.0' }}
+            - Current: ${{ steps.version.outputs.tag_name }}
+            - Type: ${{ github.event.inputs.version_type || 'manual' }}
             
             ${{ steps.changelog.outputs.changelog }}
             

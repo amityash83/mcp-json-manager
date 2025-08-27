@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
   const configProvider = new MCPConfigTreeDataProvider(context);
   const workspaceProvider = new MCPWorkspaceTreeDataProvider(context);
 
-  // Register tree views
+  // Register tree views for both locations
   vscode.window.createTreeView('mcpConfigurations', { 
     treeDataProvider: configProvider,
     showCollapseAll: true
@@ -154,11 +154,67 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.executeCommand('mcpManager.openManager', vscode.Uri.file(item.configPath));
   });
 
+  // Switch panel location command
+  const switchPanelLocationCommand = vscode.commands.registerCommand('mcpManager.switchPanelLocation', async () => {
+    const config = vscode.workspace.getConfiguration('mcpManager');
+    const currentLocation = config.get<string>('panelLocation', 'activitybar');
+    const newLocation = currentLocation === 'activitybar' ? 'panel' : 'activitybar';
+    
+    const locationNames: { [key: string]: string } = {
+      'activitybar': 'Left Sidebar (Activity Bar)',
+      'panel': 'Bottom Panel (with Terminal)'
+    };
+    
+    const choice = await vscode.window.showInformationMessage(
+      `Switch MCP panel from ${locationNames[currentLocation]} to ${locationNames[newLocation]}?`,
+      { modal: false },
+      'Switch & Reload',
+      'Cancel'
+    );
+    
+    if (choice === 'Switch & Reload') {
+      await config.update('panelLocation', newLocation, vscode.ConfigurationTarget.Global);
+      
+      const reloadChoice = await vscode.window.showInformationMessage(
+        `Panel location updated! VS Code needs to reload to apply the change.`,
+        { modal: false },
+        'Reload Now',
+        'Reload Later'
+      );
+      
+      if (reloadChoice === 'Reload Now') {
+        vscode.commands.executeCommand('workbench.action.reloadWindow');
+      }
+    }
+  });
+
+  // Listen for configuration changes
+  const configChangeListener = vscode.workspace.onDidChangeConfiguration(event => {
+    if (event.affectsConfiguration('mcpManager.panelLocation')) {
+      vscode.window.showInformationMessage(
+        'Panel location setting changed. Please reload VS Code to apply the change.',
+        'Reload Now'
+      ).then(choice => {
+        if (choice === 'Reload Now') {
+          vscode.commands.executeCommand('workbench.action.reloadWindow');
+        }
+      });
+    }
+  });
+
+  // Show initial panel location info
+  const config = vscode.workspace.getConfiguration('mcpManager');
+  const panelLocation = config.get<string>('panelLocation', 'activitybar');
+  const locationText = panelLocation === 'activitybar' ? 'left sidebar' : 'bottom panel';
+  console.log(`MCP panel configured for: ${locationText}`);
+
   context.subscriptions.push(
     openManagerCommand,
     refreshCommand, 
     addServerCommand,
-    editServerCommand
+    editServerCommand,
+    switchPanelLocationCommand,
+    configChangeListener
   );
 }
 
@@ -269,7 +325,6 @@ class MCPWorkspaceTreeDataProvider implements vscode.TreeDataProvider<MCPTreeIte
     
     if (workspaceFolders) {
       for (const folder of workspaceFolders) {
-        // Find all .json files that might be MCP configs
         const jsonFiles = this.findJsonFiles(folder.uri.fsPath);
         jsonFiles.forEach(file => {
           if (this.isMCPConfig(file)) {
@@ -319,7 +374,6 @@ class MCPWorkspaceTreeDataProvider implements vscode.TreeDataProvider<MCPTreeIte
   }
 }
 
-// Tree item classes
 abstract class MCPTreeItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
@@ -559,7 +613,6 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, in
         let currentConfig = { mcpServers: {} };
         let currentPath = '${initialPath || ''}';
         
-        // Load initial config if path is provided
         if (currentPath) {
             loadConfig();
         }
@@ -600,7 +653,7 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, in
         }
         
         function removeServer(serverName) {
-            if (confirm(\`Are you sure you want to remove server "\${serverName}"?\`)) {
+            if (confirm('Are you sure you want to remove server "' + serverName + '"?')) {
                 delete currentConfig.mcpServers[serverName];
                 renderServers();
             }
@@ -614,60 +667,57 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, in
                 const server = currentConfig.mcpServers[serverName];
                 const serverDiv = document.createElement('div');
                 serverDiv.className = 'server-card';
-                serverDiv.innerHTML = \`
-                    <div class="server-header">
-                        <div class="server-name">\${serverName}</div>
-                        <button class="remove-server" onclick="removeServer('\${serverName}')">Remove</button>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Command (required):</label>
-                        <div id="command-\${serverName}">
-                            \${(server.command || ['']).map((cmd, i) => \`
-                                <div class="array-input">
-                                    <input type="text" value="\${cmd}" onchange="updateServerCommand('\${serverName}', \${i}, this.value)">
-                                    <button type="button" onclick="removeCommandItem('\${serverName}', \${i})" class="secondary-button">Remove</button>
-                                </div>
-                            \`).join('')}
-                        </div>
-                        <button type="button" onclick="addCommandItem('\${serverName}')" class="secondary-button">Add Command Part</button>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Arguments:</label>
-                        <div id="args-\${serverName}">
-                            \${(server.args || []).map((arg, i) => \`
-                                <div class="array-input">
-                                    <input type="text" value="\${arg}" onchange="updateServerArgs('\${serverName}', \${i}, this.value)">
-                                    <button type="button" onclick="removeArgsItem('\${serverName}', \${i})" class="secondary-button">Remove</button>
-                                </div>
-                            \`).join('')}
-                        </div>
-                        <button type="button" onclick="addArgsItem('\${serverName}')" class="secondary-button">Add Argument</button>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Working Directory:</label>
-                        <div class="file-input-group">
-                            <input type="text" value="\${server.cwd || ''}" onchange="updateServerCwd('\${serverName}', this.value)">
-                            <button type="button" onclick="selectFolder('\${serverName}')" class="secondary-button">Browse</button>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Environment Variables:</label>
-                        <div id="env-\${serverName}">
-                            \${Object.entries(server.env || {}).map(([key, value]) => \`
-                                <div class="env-var">
-                                    <input type="text" placeholder="Variable name" value="\${key}" onchange="updateServerEnvKey('\${serverName}', '\${key}', this.value)">
-                                    <input type="text" placeholder="Variable value" value="\${value}" onchange="updateServerEnvValue('\${serverName}', '\${key}', this.value)">
-                                    <button type="button" onclick="removeEnvVar('\${serverName}', '\${key}')" class="secondary-button">Remove</button>
-                                </div>
-                            \`).join('')}
-                        </div>
-                        <button type="button" onclick="addEnvVar('\${serverName}')" class="secondary-button">Add Environment Variable</button>
-                    </div>
-                \`;
+                
+                let commandHtml = (server.command || ['']).map((cmd, i) => 
+                    '<div class="array-input">' +
+                    '<input type="text" value="' + cmd + '" onchange="updateServerCommand(\'' + serverName + '\', ' + i + ', this.value)">' +
+                    '<button type="button" onclick="removeCommandItem(\'' + serverName + '\', ' + i + ')" class="secondary-button">Remove</button>' +
+                    '</div>'
+                ).join('');
+                
+                let argsHtml = (server.args || []).map((arg, i) => 
+                    '<div class="array-input">' +
+                    '<input type="text" value="' + arg + '" onchange="updateServerArgs(\'' + serverName + '\', ' + i + ', this.value)">' +
+                    '<button type="button" onclick="removeArgsItem(\'' + serverName + '\', ' + i + ')" class="secondary-button">Remove</button>' +
+                    '</div>'
+                ).join('');
+                
+                let envHtml = Object.entries(server.env || {}).map(([key, value]) => 
+                    '<div class="env-var">' +
+                    '<input type="text" placeholder="Variable name" value="' + key + '" onchange="updateServerEnvKey(\'' + serverName + '\', \'' + key + '\', this.value)">' +
+                    '<input type="text" placeholder="Variable value" value="' + value + '" onchange="updateServerEnvValue(\'' + serverName + '\', \'' + key + '\', this.value)">' +
+                    '<button type="button" onclick="removeEnvVar(\'' + serverName + '\', \'' + key + '\')" class="secondary-button">Remove</button>' +
+                    '</div>'
+                ).join('');
+                
+                serverDiv.innerHTML = 
+                    '<div class="server-header">' +
+                    '<div class="server-name">' + serverName + '</div>' +
+                    '<button class="remove-server" onclick="removeServer(\'' + serverName + '\')">Remove</button>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                    '<label>Command (required):</label>' +
+                    '<div>' + commandHtml + '</div>' +
+                    '<button type="button" onclick="addCommandItem(\'' + serverName + '\')" class="secondary-button">Add Command Part</button>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                    '<label>Arguments:</label>' +
+                    '<div>' + argsHtml + '</div>' +
+                    '<button type="button" onclick="addArgsItem(\'' + serverName + '\')" class="secondary-button">Add Argument</button>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                    '<label>Working Directory:</label>' +
+                    '<div class="file-input-group">' +
+                    '<input type="text" value="' + (server.cwd || '') + '" onchange="updateServerCwd(\'' + serverName + '\', this.value)">' +
+                    '<button type="button" onclick="selectFolder(\'' + serverName + '\')" class="secondary-button">Browse</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                    '<label>Environment Variables:</label>' +
+                    '<div>' + envHtml + '</div>' +
+                    '<button type="button" onclick="addEnvVar(\'' + serverName + '\')" class="secondary-button">Add Environment Variable</button>' +
+                    '</div>';
+                
                 container.appendChild(serverDiv);
             });
         }
@@ -754,7 +804,6 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, in
         }
         
         function buildConfigFromForm() {
-            // Clean up the config by removing empty values
             const cleanConfig = { mcpServers: {} };
             
             Object.keys(currentConfig.mcpServers).forEach(serverName => {
@@ -764,7 +813,10 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, in
                 };
                 
                 if (server.args && server.args.length > 0) {
-                    cleanServer.args = server.args.filter(arg => arg.trim() !== '');
+                    const cleanArgs = server.args.filter(arg => arg.trim() !== '');
+                    if (cleanArgs.length > 0) {
+                        cleanServer.args = cleanArgs;
+                    }
                 }
                 
                 if (server.cwd && server.cwd.trim()) {
@@ -798,7 +850,6 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, in
             preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
         }
         
-        // Handle messages from the extension
         window.addEventListener('message', event => {
             const message = event.data;
             
@@ -815,7 +866,6 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, in
                     break;
                     
                 case 'folderSelected':
-                    // Find which server requested folder selection
                     const serverName = message.serverName;
                     if (serverName) {
                         currentConfig.mcpServers[serverName].cwd = message.path;
@@ -825,7 +875,6 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, in
             }
         });
         
-        // Initialize
         renderServers();
     </script>
 </body>

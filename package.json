@@ -2,15 +2,13 @@
   "name": "mcp-json-manager",
   "displayName": "MCP JSON Manager",
   "description": "Visual form-based manager for MCP (Model Context Protocol) JSON configurations",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "publisher": "test-publisher",
   "engines": {
     "vscode": "^1.74.0",
     "node": ">=18.0.0"
   },
-  "categories": [
-    "Other"
-  ],
+  "categories": ["Other"],
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -23,10 +21,27 @@
   "license": "MIT",
   "activationEvents": [
     "onCommand:mcpManager.openManager",
-    "onView:mcpConfigPanel"
+    "onView:mcpConfigurations",
+    "onView:mcpWorkspaceConfigs"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "MCP JSON Manager",
+      "properties": {
+        "mcpManager.panelLocation": {
+          "type": "string",
+          "default": "activitybar",
+          "enum": ["activitybar", "panel"],
+          "enumDescriptions": [
+            "Show in left sidebar (Activity Bar) - appears as a dedicated icon",
+            "Show in bottom panel (with Terminal, Problems, etc.)"
+          ],
+          "markdownDescription": "Choose where to display the MCP Configuration panel. **Requires VS Code reload** to take effect.",
+          "scope": "window"
+        }
+      }
+    },
     "commands": [
       {
         "command": "mcpManager.openManager",
@@ -51,28 +66,55 @@
         "title": "Edit Server",
         "category": "MCP",
         "icon": "$(edit)"
+      },
+      {
+        "command": "mcpManager.switchPanelLocation",
+        "title": "Switch Panel Location",
+        "category": "MCP",
+        "icon": "$(layout)"
       }
     ],
     "views": {
-      "mcpConfigPanel": [
+      "mcpActivityBar": [
         {
           "id": "mcpConfigurations",
           "name": "MCP Servers",
-          "when": "true"
+          "when": "config.mcpManager.panelLocation == 'activitybar'"
         },
         {
-          "id": "mcpWorkspaceConfigs",
+          "id": "mcpWorkspaceConfigs", 
           "name": "Workspace Configs",
-          "when": "workspaceHasFiles"
+          "when": "config.mcpManager.panelLocation == 'activitybar'"
+        }
+      ],
+      "mcpBottomPanel": [
+        {
+          "id": "mcpConfigurations",
+          "name": "MCP Servers",
+          "when": "config.mcpManager.panelLocation == 'panel'"
+        },
+        {
+          "id": "mcpWorkspaceConfigs", 
+          "name": "Workspace Configs",
+          "when": "config.mcpManager.panelLocation == 'panel'"
         }
       ]
     },
     "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mcpActivityBar",
+          "title": "MCP Configuration",
+          "icon": "$(json)",
+          "when": "config.mcpManager.panelLocation == 'activitybar'"
+        }
+      ],
       "panel": [
         {
-          "id": "mcpConfigPanel",
+          "id": "mcpBottomPanel",
           "title": "MCP Configuration",
-          "icon": "$(json)"
+          "icon": "$(json)",
+          "when": "config.mcpManager.panelLocation == 'panel'"
         }
       ]
     },
@@ -85,8 +127,13 @@
         },
         {
           "command": "mcpManager.addServer",
-          "when": "view == mcpConfigurations",
+          "when": "view == mcpConfigurations", 
           "group": "navigation"
+        },
+        {
+          "command": "mcpManager.switchPanelLocation",
+          "when": "view == mcpConfigurations",
+          "group": "navigation@99"
         }
       ],
       "view/item/context": [
@@ -101,6 +148,12 @@
           "command": "mcpManager.openManager",
           "when": "resourceFilename =~ /.*\\.mcp\\.json$/",
           "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mcpManager.switchPanelLocation",
+          "when": "true"
         }
       ]
     }

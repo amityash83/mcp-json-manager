@@ -2,13 +2,15 @@
   "name": "mcp-json-manager",
   "displayName": "MCP JSON Manager",
   "description": "Visual form-based manager for MCP (Model Context Protocol) JSON configurations",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "test-publisher",
   "engines": {
     "vscode": "^1.74.0",
     "node": ">=18.0.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -59,7 +61,7 @@
           "when": "true"
         },
         {
-          "id": "mcpWorkspaceConfigs", 
+          "id": "mcpWorkspaceConfigs",
           "name": "Workspace Configs",
           "when": "workspaceHasFiles"
         }
@@ -83,7 +85,7 @@
         },
         {
           "command": "mcpManager.addServer",
-          "when": "view == mcpConfigurations", 
+          "when": "view == mcpConfigurations",
           "group": "navigation"
         }
       ],

@@ -160,7 +160,7 @@ export function activate(context: vscode.ExtensionContext) {
     const currentLocation = config.get<string>('panelLocation', 'activitybar');
     const newLocation = currentLocation === 'activitybar' ? 'panel' : 'activitybar';
     
-    const locationNames = {
+    const locationNames: { [key: string]: string } = {
       'activitybar': 'Left Sidebar (Activity Bar)',
       'panel': 'Bottom Panel (with Terminal)'
     };

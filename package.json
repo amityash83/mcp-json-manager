@@ -2,7 +2,7 @@
   "name": "mcp-json-manager",
   "displayName": "MCP JSON Manager",
   "description": "Visual form-based manager for MCP (Model Context Protocol) JSON configurations",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "test-publisher",
   "engines": {
     "vscode": "^1.74.0",
